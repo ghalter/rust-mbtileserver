@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+.idea/*
+
+sqlite3.lib
+tiles/protected_areas.mbtiles
+sqlite3.lib
