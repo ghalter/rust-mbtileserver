@@ -8,10 +8,12 @@ use crate::errors::{Error, Result};
 #[derive(Clone)]
 pub struct Args {
     pub directory: PathBuf,
+    pub scan_interval: u16,
     pub port: u16,
     pub allowed_hosts: Vec<String>,
     pub headers: Vec<(String, String)>,
     pub disable_preview: bool,
+    pub sub_domain: String
 }
 
 pub fn get_app<'a, 'b>() -> App<'a, 'b> {
@@ -24,7 +26,8 @@ pub fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("directory")
                 .default_value("./tiles")
                 .help("Tiles directory\n")
-                .takes_value(true),
+                .takes_value(true)
+                .env("DIRECTORY"),
         )
         .arg(
             Arg::with_name("port")
@@ -32,7 +35,8 @@ pub fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("port")
                 .default_value("3000")
                 .help("Server port\n")
-                .takes_value(true),
+                .takes_value(true)
+                .env("PORT"),
         )
         .arg(
             Arg::with_name("allowed_hosts")
@@ -40,7 +44,25 @@ pub fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .default_value("localhost, 127.0.0.1, [::1]")
                 .help("A comma-separated list of allowed hosts")
                 .long_help("\"*\" matches all domains and \".<domain>\" matches all subdomains for the given domain\n")
-                .takes_value(true),
+                .takes_value(true)
+                .env("ALLOWED_HOSTS"),
+        ).arg(
+        Arg::with_name("sub_domain")
+            .long("sub-domain")
+            .default_value("")
+            .help("If the server is served in a sub domain of the url, add the sub domain.")
+            .long_help("If the server is served in a sub domain of the url, add the sub domain.")
+            .takes_value(true)
+            .env("SUB_DOMAIN"),
+        )
+        .arg(
+        Arg::with_name("scan_interval")
+            .short("si")
+            .long("scan-interval")
+            .default_value("30")
+            .help("The duration between two scan of the folder, if new mbtiles have been added. Disabled if 0\n")
+            .takes_value(true)
+            .env("SCAN_INTERVAL"),
         )
         .arg(
             Arg::with_name("header")
@@ -48,13 +70,14 @@ pub fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("header")
                 .help("Add custom header\n")
                 .multiple(true)
-                .takes_value(true),
+                .takes_value(true).env("HEADER"),
         )
         .arg(
             Arg::with_name("disable_preview")
                 .long("disable-preview")
                 .help("Disable preview map\n"),
         )
+
 }
 
 pub fn parse(matches: ArgMatches) -> Result<Args> {
@@ -77,6 +100,21 @@ pub fn parse(matches: ArgMatches) -> Result<Args> {
             )))
         }
     };
+
+    let sub_domain = match matches.value_of("sub_domain").unwrap().parse::<String>(){
+        Ok(s) => s,
+        Err(_) => {
+            return Err(Error::Config(String::from(
+                "Could not parse subdomain",
+            )))
+        }
+    };
+
+    let scan_interval = match matches.value_of("scan_interval").unwrap().parse::<u16>(){
+        Ok(si) => si,
+        Err(_) => 0
+    };
+
 
     let allowed_hosts: Vec<String> = matches
         .value_of("allowed_hosts")
@@ -110,10 +148,12 @@ pub fn parse(matches: ArgMatches) -> Result<Args> {
 
     Ok(Args {
         directory,
+        scan_interval,
         port,
         allowed_hosts,
         headers,
         disable_preview,
+        sub_domain
     })
 }
 

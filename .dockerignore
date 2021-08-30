@@ -1,2 +1,4 @@
-/target
-/tiles
+/target*
+/tiles*
+.git/
+.cache/

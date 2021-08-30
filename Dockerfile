@@ -1,10 +1,16 @@
-FROM rust:1.41
+# docker build Dockerfile
 
-WORKDIR /usr/src/mbtileserver
-COPY . .
+FROM rust:latest
 
-RUN mkdir /tiles
+RUN mkdir /app
+WORKDIR /app
 
-RUN cargo install --path .
+ADD . /app
 
-CMD ["mbtileserver -d /tiles"]
+RUN mkdir /app/data
+
+RUN cargo build --release
+
+EXPOSE 5000
+
+ENTRYPOINT ./target/release/mbtileserver -d ./data/mbtiles
