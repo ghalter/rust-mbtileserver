@@ -59,7 +59,7 @@ pub fn get_app<'a, 'b>() -> App<'a, 'b> {
         Arg::with_name("scan_interval")
             .short("si")
             .long("scan-interval")
-            .default_value("30")
+            .default_value("120")
             .help("The duration between two scan of the folder, if new mbtiles have been added. Disabled if 0\n")
             .takes_value(true)
             .env("SCAN_INTERVAL"),

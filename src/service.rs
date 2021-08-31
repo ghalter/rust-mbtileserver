@@ -12,7 +12,7 @@ use crate::utils::{encode, get_blank_image, DataFormat};
 
 lazy_static! {
     static ref TILE_URL_RE: Regex =
-        Regex::new(r"^api/tileservice/services/(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)/?(\?(?P<query>.*))?").unwrap();
+        Regex::new(r"^/services/(?P<tile_path>.*)/tiles/(?P<z>\d+)/(?P<x>\d+)/(?P<y>\d+)\.(?P<format>[a-zA-Z]+)/?(\?(?P<query>.*))?").unwrap();
 }
 
 #[allow(dead_code)]
@@ -76,7 +76,6 @@ fn is_host_valid(host: Option<&HeaderValue>, allowed_hosts: &Vec<String>) -> boo
         if pattern == "*" || pattern == host {
             return true;
         }
-        println!("Query Host {} checking for pattern {}", host, pattern);
         if pattern.starts_with(".") {
             let mut pattern = pattern.clone();
             let pattern = pattern.split_off(1);
@@ -89,36 +88,38 @@ fn is_host_valid(host: Option<&HeaderValue>, allowed_hosts: &Vec<String>) -> boo
     false
 }
 
-pub struct SharedData{
-    pub tileset: HashMap<String, TileMeta>
+pub struct SharedData {
+    pub tileset: HashMap<String, TileMeta>,
 }
 
 pub async fn get_service(
     request: Request<Body>,
     allowed_hosts: Vec<String>,
     headers: Vec<(String, String)>,
-    disable_preview: bool, shared:Arc<RwLock<SharedData>>,
-    subdomain: String
+    disable_preview: bool,
+    shared: Arc<RwLock<SharedData>>,
+    subdomain: String,
 ) -> Result<Response<Body>, hyper::Error> {
     if !is_host_valid(request.headers().get(HOST), &allowed_hosts) {
         return Ok(forbidden());
     };
 
     let uri = request.uri();
-    let path = uri.path();
-    println!("Request {}", path);
 
+    let path = uri.path().replace("/api/tileserver/", "/");
+    println!("{} to {}", uri.path() ,path);
     let scheme = match uri.scheme_str() {
         Some(scheme) => format!("{}://", scheme),
-        None => String::from("http://"),
+        None => String::from("https://"),
     };
     let base_url = format!(
-        "{}{}{}/services", scheme,  request.headers()["host"].to_str().unwrap(), subdomain
+        "{}{}{}/services", scheme, request.headers()["host"].to_str().unwrap(), subdomain
     );
 
     let tilesets = shared.read().unwrap().tileset.clone();
 
-    match TILE_URL_RE.captures(path) {
+
+    match TILE_URL_RE.captures(&path) {
         Some(matches) => {
             let tile_path = matches.name("tile_path").unwrap().as_str();
             let tile_meta = tilesets.get(tile_path).unwrap();
@@ -218,7 +219,7 @@ pub async fn get_service(
                                     return Ok(bad_request(format!(
                                         "Tileset does not exist: {}",
                                         tile_name
-                                    )))
+                                    )));
                                 }
                             }
                         }
@@ -315,10 +316,10 @@ mod tests {
             allowed_hosts.unwrap_or(vec![String::from("*")]),
             headers.unwrap_or(vec![]),
             disable_preview,
-            subdomain.clone()
+            subdomain.clone(),
         )
-        .await
-        .unwrap()
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -336,7 +337,7 @@ mod tests {
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 403);
     }
 
@@ -349,7 +350,7 @@ mod tests {
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
     }
 
@@ -362,7 +363,7 @@ mod tests {
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
     }
 
@@ -375,7 +376,7 @@ mod tests {
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 403);
     }
 
@@ -388,7 +389,7 @@ mod tests {
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
     }
 
@@ -401,7 +402,7 @@ mod tests {
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
     }
 
@@ -409,12 +410,12 @@ mod tests {
     async fn get_preview_map() {
         let response = setup(
             "localhost",
-            "/api/tileserver/services/geography-class-png/map",
+            "/services/geography-class-png/map",
             None,
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
     }
 
@@ -422,12 +423,12 @@ mod tests {
     async fn get_existing_tile() {
         let response = setup(
             "localhost",
-            "/api/tileserver/services/geography-class-png/tiles/0/0/0.png",
+            "/services/geography-class-png/tiles/0/0/0.png",
             None,
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
     }
 
@@ -436,12 +437,12 @@ mod tests {
         // Geography Class PNG has no tiles beyond zoom level 1 and should return a blank image
         let response = setup(
             "localhost",
-            "/api/tileserver/services/geography-class-png/tiles/2/0/0.png",
+            "/services/geography-class-png/tiles/2/0/0.png",
             None,
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
         assert_eq!(
             body::to_bytes(response.into_body()).await.unwrap(),
@@ -453,21 +454,21 @@ mod tests {
     async fn get_existing_utfgrid_data() {
         let response = setup(
             "localhost",
-            "/api/tileserver/services/geography-class-png/tiles/0/0/0.json",
+            "/services/geography-class-png/tiles/0/0/0.json",
             None,
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 200);
         let data: JSONValue = serde_json::from_str(
             &decode(
                 body::to_bytes(response.into_body()).await.unwrap().to_vec(),
                 DataFormat::GZIP,
             )
-            .unwrap(),
+                .unwrap(),
         )
-        .unwrap();
+            .unwrap();
         assert_ne!(data.get("data"), None);
         assert_ne!(data.get("grid"), None);
         assert_ne!(data.get("keys"), None);
@@ -478,12 +479,12 @@ mod tests {
         // should return empty content with 204 status
         let response = setup(
             "localhost",
-            "/api/tileserver/services/geography-class-png/tiles/2/0/0.json",
+            "/services/geography-class-png/tiles/2/0/0.json",
             None,
             None,
             false,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 204);
     }
 
@@ -491,12 +492,12 @@ mod tests {
     async fn disable_preview() {
         let response = setup(
             "localhost",
-            "/api/tileserver/services/geography-class-png/map",
+            "/services/geography-class-png/map",
             None,
             None,
             true,
         )
-        .await;
+            .await;
         assert_eq!(response.status(), 404);
     }
 }

@@ -13,4 +13,4 @@ RUN cargo build --release
 
 EXPOSE 5000
 
-ENTRYPOINT ./target/release/mbtileserver -d ./data/mbtiles
+ENTRYPOINT ./target/release/mbtileserver
