@@ -70,6 +70,7 @@ pub fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("header")
                 .help("Add custom header\n")
                 .multiple(true)
+                .use_delimiter(true)
                 .takes_value(true).env("HEADER"),
         )
         .arg(

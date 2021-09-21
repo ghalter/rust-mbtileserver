@@ -107,7 +107,7 @@ pub async fn get_service(
     let uri = request.uri();
 
     let path = uri.path().replace("/api/tileserver/", "/");
-    println!("{} to {}", uri.path() ,path);
+
     let scheme = match uri.scheme_str() {
         Some(scheme) => format!("{}://", scheme),
         None => String::from("https://"),
@@ -115,6 +115,7 @@ pub async fn get_service(
     let base_url = format!(
         "{}{}{}/services", scheme, request.headers()["host"].to_str().unwrap(), subdomain
     );
+
 
     let tilesets = shared.read().unwrap().tileset.clone();
 
@@ -183,6 +184,12 @@ pub async fn get_service(
         }
         None => {
             if path.starts_with("/services") {
+
+                let mut response = Response::builder();
+                for (k, v) in headers {
+                    response = response.header(&k, &v);
+                }
+
                 let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
                 if segments.len() == 1 {
                     // Root url (/services): show all services
@@ -194,7 +201,7 @@ pub async fn get_service(
                         });
                     }
                     let resp_json = serde_json::to_string(&tiles_summary).unwrap(); // TODO handle error
-                    return Ok(Response::builder()
+                    return Ok(response
                         .header(CONTENT_TYPE, "application/json")
                         .body(Body::from(resp_json))
                         .unwrap()); // TODO handle error
@@ -277,7 +284,7 @@ pub async fn get_service(
                     tile_meta_json["map"] = json!(format!("{}/{}/{}", base_url, tile_name, "map"));
                 }
 
-                return Ok(Response::builder()
+                return Ok(response
                     .header(CONTENT_TYPE, "application/json")
                     .body(Body::from(serde_json::to_string(&tile_meta_json).unwrap()))
                     .unwrap()); // TODO handle error

@@ -53,6 +53,9 @@ async fn main() {
     let allowed_hosts = args.allowed_hosts;
     let headers = args.headers;
 
+    for h in headers.clone(){
+        print!("Header:{}, Value:{}\n", h.0, h.1);
+    }
     let _ts = shared.clone();
     let _si = args.scan_interval.clone();
     let _subdomain = args.sub_domain;
